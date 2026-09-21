@@ -65,10 +65,18 @@ jobs:
             -Path $exe.FullName `
             -NewName "SAN8R_中文编辑器.exe"
 
+      - name: Show Downloaded Files
+        shell: powershell
+        run: |
+          Write-Host "=========================================="
+          Write-Host "dist 文件夹内容"
+          Write-Host "=========================================="
+          Get-ChildItem -Path "dist" -Force
+
       - name: Upload EXE
         uses: actions/upload-artifact@v4
         with:
           name: SAN8R-Editor-Windows-x64
-          path: dist/SAN8R_中文编辑器.exe
+          path: dist/*.exe
           if-no-files-found: error
           retention-days: 30
