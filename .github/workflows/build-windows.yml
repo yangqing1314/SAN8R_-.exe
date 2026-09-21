@@ -15,71 +15,60 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download Editor from Release
+      - name: Download Editor Release
         shell: powershell
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+
           $repo = "${{ github.repository }}"
           $tag = "v1.0"
-          $assetName = "s8pk_hp_editor1.0_完整中文汉化版_v2.exe"
+          $asset = "s8pk_hp_editor1.0_完整中文汉化版_v2.exe"
 
-          Write-Host "正在查找 Release: $tag"
+          Write-Host "========================================"
+          Write-Host "下载 SAN8R 中文编辑器"
+          Write-Host "仓库: $repo"
+          Write-Host "版本: $tag"
+          Write-Host "文件: $asset"
+          Write-Host "========================================"
 
-          $headers = @{
-            Authorization = "Bearer $env:GITHUB_TOKEN"
-            Accept = "application/vnd.github+json"
-            "X-GitHub-Api-Version" = "2022-11-28"
-          }
+          gh release download $tag `
+            --repo $repo `
+            --pattern $asset `
+            --dir dist `
+            --clobber
 
-          $releaseUrl = "https://api.github.com/repos/$repo/releases/tags/$tag"
-
-          $release = Invoke-RestMethod `
-            -Uri $releaseUrl `
-            -Headers $headers `
-            -Method Get
-
-          Write-Host "Release: $($release.name)"
-
-          $asset = $release.assets |
-            Where-Object { $_.name -eq $assetName } |
-            Select-Object -First 1
-
-          if ($null -eq $asset) {
-            Write-Error "没有找到 EXE: $assetName"
-            Write-Host "当前 Release 中的文件："
-            $release.assets | ForEach-Object {
-              Write-Host $_.name
-            }
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Release 文件下载失败"
             exit 1
           }
 
-          Write-Host "找到文件：$($asset.name)"
-          Write-Host "文件大小：$($asset.size) bytes"
+          $downloaded = Join-Path "dist" $asset
 
-          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          if (!(Test-Path $downloaded)) {
+            Write-Error "没有找到下载后的 EXE：$downloaded"
+            Get-ChildItem -Path dist
+            exit 1
+          }
 
-          Invoke-WebRequest `
-            -Uri $asset.browser_download_url `
-            -Headers @{
-              Authorization = "Bearer $env:GITHUB_TOKEN"
-              Accept = "application/octet-stream"
-            } `
-            -OutFile "dist\SAN8R_中文编辑器.exe"
+          Rename-Item `
+            -Path $downloaded `
+            -NewName "SAN8R_中文编辑器.exe"
 
       - name: Verify EXE
         shell: powershell
         run: |
           $exe = Get-Item "dist\SAN8R_中文编辑器.exe"
 
-          Write-Host "================================"
-          Write-Host "Windows EXE 构建结果"
-          Write-Host "文件: $($exe.FullName)"
-          Write-Host "大小: $($exe.Length) bytes"
-          Write-Host "================================"
+          Write-Host "========================================"
+          Write-Host "EXE 检查"
+          Write-Host "文件：$($exe.FullName)"
+          Write-Host "大小：$($exe.Length) bytes"
+          Write-Host "========================================"
 
           if ($exe.Length -lt 1000000) {
-            Write-Error "EXE 文件异常，可能下载失败"
+            Write-Error "EXE 文件异常过小"
             exit 1
           }
 
