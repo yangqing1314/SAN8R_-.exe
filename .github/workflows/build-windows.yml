@@ -15,57 +15,55 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download Chinese Editor
+      - name: Download Editor Release
         shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          $repo = "${{ github.repository }}"
-          $tag = "v1.0"
-          $asset = "s8pk_hp_editor1.0_完整中文汉化版_v2.exe"
-
           Write-Host "=========================================="
-          Write-Host "开始下载中文编辑器"
-          Write-Host "仓库: $repo"
-          Write-Host "版本: $tag"
-          Write-Host "文件: $asset"
+          Write-Host "下载 SAN8R 中文编辑器"
           Write-Host "=========================================="
 
           New-Item -ItemType Directory -Force -Path "dist" | Out-Null
 
-          $encodedAsset = [uri]::EscapeDataString($asset)
-          $url = "https://github.com/$repo/releases/download/$tag/$encodedAsset"
+          gh release download v1.0 `
+            --repo "${{ github.repository }}" `
+            --pattern "*.exe" `
+            --dir "dist" `
+            --clobber
 
-          Write-Host "下载地址:"
-          Write-Host $url
-
-          Invoke-WebRequest `
-            -Uri $url `
-            -OutFile "dist\SAN8R_中文编辑器.exe" `
-            -UseBasicParsing
-
-          if (!(Test-Path "dist\SAN8R_中文编辑器.exe")) {
-            Write-Error "没有下载到 EXE"
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Release EXE 下载失败"
             exit 1
           }
 
-          Write-Host "下载成功！"
+          Write-Host "Release 下载完成"
 
-      - name: Check EXE
+          Get-ChildItem "dist"
+
+      - name: Find EXE
         shell: powershell
         run: |
-          $file = Get-Item "dist\SAN8R_中文编辑器.exe"
+          $exe = Get-ChildItem "dist\*.exe" | Select-Object -First 1
 
-          Write-Host "=========================================="
-          Write-Host "EXE 检查结果"
-          Write-Host "文件名: $($file.Name)"
-          Write-Host "文件大小: $($file.Length) bytes"
-          Write-Host "=========================================="
-
-          if ($file.Length -lt 1000000) {
-            Write-Error "EXE 文件异常，大小小于 1 MB"
+          if ($null -eq $exe) {
+            Write-Error "没有找到 EXE 文件"
             exit 1
           }
 
-          Write-Host "EXE 文件正常"
+          Write-Host "找到 EXE:"
+          Write-Host $exe.FullName
+          Write-Host "文件大小:"
+          Write-Host $exe.Length
+
+          if ($exe.Length -lt 1000000) {
+            Write-Error "EXE 文件异常过小"
+            exit 1
+          }
+
+          Rename-Item `
+            -Path $exe.FullName `
+            -NewName "SAN8R_中文编辑器.exe"
 
       - name: Upload EXE
         uses: actions/upload-artifact@v4
