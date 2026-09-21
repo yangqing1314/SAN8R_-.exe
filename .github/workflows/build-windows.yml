@@ -1,0 +1,54 @@
+name: Build SAN8R Editor
+
+on:
+  workflow_dispatch:
+
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Windows x64 Build
+    runs-on: windows-2025
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          architecture: x64
+
+      - name: Install PyInstaller
+        shell: powershell
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyinstaller
+
+      - name: Build
+        shell: powershell
+        run: |
+          if (Test-Path "SAN8R_配偶编辑器.spec") {
+            python -m PyInstaller --clean --noconfirm "SAN8R_配偶编辑器.spec"
+          }
+          elseif (Test-Path "src/main.py") {
+            python -m PyInstaller --clean --noconfirm --onefile --windowed --name "SAN8R_配偶编辑器" src/main.py
+          }
+          else {
+            Write-Error "没有找到编辑器程序文件"
+            exit 1
+          }
+
+      - name: Upload EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: SAN8R-Editor-Windows-x64
+          path: dist/*.exe
+          if-no-files-found: error
+          retention-days: 30
